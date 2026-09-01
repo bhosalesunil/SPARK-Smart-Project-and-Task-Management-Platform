@@ -53,6 +53,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/board", boardRoutes);
+app.use("/api/boards", boardRoutes);
 app.use("/api/member", memberRoutes);
 app.use("/api/tasks", taskRoutes);
 

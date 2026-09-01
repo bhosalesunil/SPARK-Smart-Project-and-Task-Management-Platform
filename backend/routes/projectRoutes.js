@@ -94,8 +94,8 @@ router.delete("/:id", protect, authorize("admin"), async (req, res) => {
   }
 });
 
-// ADD MEMBER
-router.put("/:id/members", protect, authorize("admin"), async (req, res) => {
+// ADD MEMBER (support both POST and PUT)
+const addMemberHandler = async (req, res) => {
   try {
     const { userId } = req.body;
 
@@ -116,7 +116,10 @@ router.put("/:id/members", protect, authorize("admin"), async (req, res) => {
     console.error("Add Member Error:", error);
     res.status(500).json({ message: "Failed to add member" });
   }
-});
+};
+
+router.post("/:id/members", protect, authorize("admin"), addMemberHandler);
+router.put("/:id/members", protect, authorize("admin"), addMemberHandler);
 
 // REMOVE MEMBER
 router.delete("/:id/members/:userId", protect, authorize("admin"), async (req, res) => {
