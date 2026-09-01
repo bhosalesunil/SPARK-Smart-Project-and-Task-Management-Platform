@@ -1,21 +1,19 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { motion } from "framer-motion";
 import { ArrowLeft, CheckSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
 
 export default function AdminCreateTask() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [members, setMembers] = useState([]);
   const [title, setTitle] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("normal");
+  const [projectId, setProjectId] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -54,8 +52,8 @@ export default function AdminCreateTask() {
     try {
       setLoading(true);
       await api.post("/tasks", {
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         projectId,
         assignedTo: assignedTo || null,
         priority,
@@ -71,44 +69,44 @@ export default function AdminCreateTask() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 mt-4">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <button 
+        <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors mb-4"
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors mb-3"
         >
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={14} /> Back
         </button>
-        <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
-          <CheckSquare className="text-primary-400" size={28} /> Create New Task
+        <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5 font-heading">
+          <CheckSquare className="text-emerald-400" size={24} /> Create New Task
         </h1>
-        <p className="text-zinc-400 mt-2">Add a new actionable item to an existing project.</p>
+        <p className="text-xs text-slate-400 mt-1">Add a new actionable item to a workspace.</p>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-panel p-8 rounded-2xl border border-white/5 relative overflow-hidden"
-      >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-600/5 blur-[80px] rounded-full pointer-events-none" />
-        
-        <form onSubmit={createTask} className="space-y-5 relative z-10">
-          <Input
-            label="Task Title"
-            placeholder="e.g. Update user authentication flow"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            autoFocus
-          />
+      <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl shadow-black/20">
+        <form onSubmit={createTask} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 ml-1">
+              Task Title
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Update user authentication flow"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              autoFocus
+              className="w-full px-4 py-2.5 bg-[#131d31] border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all text-sm"
+            />
+          </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2 ml-1">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 ml-1">
               Description (Optional)
             </label>
             <textarea
-              className="w-full bg-zinc-900/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none text-sm"
-              rows="2"
+              className="w-full px-4 py-2.5 bg-[#131d31] border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all text-sm resize-none"
+              rows="3"
               placeholder="Provide additional details or requirements..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -117,7 +115,7 @@ export default function AdminCreateTask() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2 ml-1">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 ml-1">
                 Select Project
               </label>
               <select
@@ -127,7 +125,7 @@ export default function AdminCreateTask() {
                   fetchMembers(e.target.value);
                 }}
                 required
-                className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
+                className="w-full px-3.5 py-2.5 bg-[#131d31] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all text-xs"
               >
                 <option value="" disabled>Choose a project...</option>
                 {projects.map((p) => (
@@ -137,57 +135,52 @@ export default function AdminCreateTask() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2 ml-1">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5 ml-1">
                 Priority
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-sm"
+                className="w-full px-3.5 py-2.5 bg-[#131d31] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all text-xs"
               >
                 <option value="low">🟢 Low</option>
-                <option value="normal">🔵 Normal</option>
+                <option value="normal">🟡 Medium</option>
                 <option value="high">🔴 High</option>
               </select>
             </div>
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: projectId ? 1 : 0.5, height: 'auto' }}
-            className="overflow-hidden"
-          >
-            <label className="block text-sm font-medium text-zinc-300 mb-2 ml-1">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 ml-1">
               Assign Member (Optional)
             </label>
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
               disabled={!projectId}
-              className="w-full px-4 py-3 bg-zinc-900/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3.5 py-2.5 bg-[#131d31] border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all text-xs disabled:opacity-50"
             >
               <option value="">Unassigned</option>
               {members.map((m) => (
-                <option key={m._id} value={m._id}>{m.name}</option>
+                <option key={m._id} value={m._id}>{m.name} ({m.email})</option>
               ))}
             </select>
-            {!projectId && (
-              <p className="text-xs text-zinc-500 mt-2 ml-1">Select a project first to see available members.</p>
-            )}
-          </motion.div>
+          </div>
 
-          <div className="flex gap-3 pt-4 border-t border-white/5 mt-6">
-            <Button 
-              type="button" 
-              variant="outline" 
+          <div className="flex gap-3 pt-4 border-t border-slate-800 mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               className="flex-1"
               onClick={() => navigate("/admin/tasks")}
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              className="flex-1 shadow-lg shadow-primary-500/20"
+            <Button
+              type="submit"
+              size="sm"
+              className="flex-1 shadow-lg shadow-emerald-600/20"
               isLoading={loading}
               disabled={!title || !projectId}
             >
@@ -195,7 +188,7 @@ export default function AdminCreateTask() {
             </Button>
           </div>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 }

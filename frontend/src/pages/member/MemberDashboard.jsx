@@ -1,207 +1,257 @@
 import { useEffect, useState } from "react";
-import api from "../../api/axios";
-import toast from "react-hot-toast";
+import { Folder, CheckSquare, Clock, CheckCircle2, ArrowRight } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { CheckSquare, Clock, AlertCircle, Play, ChevronRight, FolderKanban } from "lucide-react";
+import toast from "react-hot-toast";
+import api from "../../api/axios";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import useAuthStore from "../../context/AuthStore";
 import { Button } from "../../components/ui/Button";
-import { Badge } from "../../components/ui/Badge";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { EmptyState } from "../../components/ui/EmptyState";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 export default function MemberDashboard() {
-  const { user } = useAuthStore();
   const navigate = useNavigate();
-  
+  const { user } = useAuthStore();
+
   const [stats, setStats] = useState({
     assigned: 0,
     inProgress: 0,
     completed: 0,
   });
-
   const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboard();
+    fetchMemberData();
   }, []);
 
-  const fetchDashboard = async () => {
+  const fetchMemberData = async () => {
     try {
-      const [statsRes, tasksRes] = await Promise.all([
+      setLoading(true);
+      const [dashRes, tasksRes, projRes] = await Promise.all([
         api.get("/member/dashboard"),
-        api.get("/member/tasks"),
+        api.get("/tasks"),
+        api.get("/projects"),
       ]);
 
-      setStats(statsRes.data);
-      setTasks(tasksRes.data);
+      setStats(dashRes.data);
+      setTasks(tasksRes.data.filter((t) => t.assignedTo?._id === user?._id || t.assignedTo === user?._id));
+      setProjects(projRes.data);
     } catch (err) {
-      toast.error("Failed to load dashboard");
       console.error("Member Dashboard Error:", err);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
+  const total = stats.assigned + stats.inProgress + stats.completed || 1;
+  const completedPct = Math.round((stats.completed / total) * 100);
+  const inProgressPct = Math.round((stats.inProgress / total) * 100);
+  const todoPct = 100 - completedPct - inProgressPct;
+
+  const donutData = [
+    { name: "Completed", value: stats.completed, color: "#10b981", pct: completedPct },
+    { name: "In Progress", value: stats.inProgress, color: "#3b82f6", pct: inProgressPct },
+    { name: "To Do", value: stats.assigned, color: "#a855f7", pct: todoPct },
+  ];
+
   const statCards = [
-    { title: "Assigned Tasks", value: stats.assigned, icon: CheckSquare, color: "from-blue-500 to-indigo-500", glow: "shadow-indigo-500/20" },
-    { title: "In Progress", value: stats.inProgress, icon: Play, color: "from-amber-500 to-orange-500", glow: "shadow-orange-500/20" },
-    { title: "Completed", value: stats.completed, icon: CheckSquare, color: "from-emerald-500 to-teal-500", glow: "shadow-emerald-500/20" },
+    {
+      title: "Assigned Tasks",
+      sub: "Awaiting start",
+      value: stats.assigned,
+      icon: CheckSquare,
+      iconBg: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    },
+    {
+      title: "In Progress",
+      sub: "Currently working",
+      value: stats.inProgress,
+      icon: Clock,
+      iconBg: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    },
+    {
+      title: "Completed",
+      sub: "Finished tasks",
+      value: stats.completed,
+      icon: CheckCircle2,
+      iconBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    },
+    {
+      title: "Projects",
+      sub: "Active workspaces",
+      value: projects.length,
+      icon: Folder,
+      iconBg: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    },
   ];
-
-  const pieData = [
-    { name: 'To Do', value: Math.max(0, stats.assigned - stats.inProgress - stats.completed), color: '#3b82f6' },
-    { name: 'In Progress', value: stats.inProgress, color: '#f59e0b' },
-    { name: 'Completed', value: stats.completed, color: '#10b981' },
-  ];
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "todo": return <Badge variant="secondary">To Do</Badge>;
-      case "progress": return <Badge variant="warning">In Progress</Badge>;
-      case "completed": return <Badge variant="success">Completed</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="p-8 glass-panel rounded-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6"
-      >
-        <div className="absolute -top-24 -left-24 w-64 h-64 bg-accent-500/20 blur-[100px] rounded-full mix-blend-screen" />
-        <div className="relative z-10">
-          <h1 className="text-3xl font-heading font-bold text-white mb-2">Hello, {user?.name?.split(' ')[0]}</h1>
-          <p className="text-zinc-400">Ready to crush your goals today? Here's an overview of your work.</p>
-        </div>
-        <Button onClick={() => navigate("/member/tasks")} className="relative z-10 shrink-0 shadow-lg shadow-primary-500/20">
-          View My Tasks
-        </Button>
-      </motion.div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* 4 Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {statCards.map((stat, i) => (
           <motion.div
             key={i}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className={`glass p-6 rounded-2xl border-t-4 border-t-transparent hover:border-t-primary-500 transition-all duration-300 relative group overflow-hidden`}
+            transition={{ delay: i * 0.08 }}
+            className="bg-[#0f172a] border border-slate-800/80 p-5 rounded-2xl flex items-center gap-4 shadow-lg shadow-black/20"
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg ${stat.glow}`}>
-                <stat.icon className="text-white" size={24} />
-              </div>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${stat.iconBg}`}>
+              <stat.icon size={22} />
             </div>
-            <h3 className="text-zinc-400 text-sm font-medium">{stat.title}</h3>
-            <div className="text-3xl font-bold text-white mt-1">
-              {loading ? <div className="h-9 w-16 bg-zinc-800 animate-pulse rounded mt-1" /> : stat.value}
+            <div>
+              <p className="text-2xl font-bold text-white tracking-tight leading-tight">
+                {loading ? <span className="inline-block w-8 h-6 bg-slate-800 animate-pulse rounded" /> : stat.value}
+              </p>
+              <p className="text-xs font-semibold text-slate-300 mt-0.5">{stat.title}</p>
+              <p className="text-[11px] text-slate-500">{stat.sub}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Progress Chart */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+      {/* Middle Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* My Tasks List */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="glass-panel p-6 rounded-2xl border border-white/5 flex flex-col"
+          className="lg:col-span-6 bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between shadow-lg shadow-black/20"
         >
-          <h2 className="text-lg font-semibold text-white mb-6">Task Progress</h2>
-          <div className="flex-1 flex items-center justify-center min-h-[250px]">
-            {stats.assigned === 0 ? (
-              <div className="text-center text-zinc-500">
-                <AlertCircle className="mx-auto mb-2 opacity-50" size={32} />
-                <p>No tasks assigned yet</p>
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold text-white tracking-tight font-heading">
+                My Assigned Tasks
+              </h2>
+              <Link
+                to="/member/tasks"
+                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
+              >
+                View all <ArrowRight size={13} />
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl bg-slate-800/50" />
+                ))}
+              </div>
+            ) : tasks.length === 0 ? (
+              <div className="py-8 text-center text-slate-500 text-sm">
+                No tasks assigned to you yet.
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={pieData.filter(d => d.value > 0)}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
+              <div className="space-y-3">
+                {tasks.slice(0, 4).map((t) => (
+                  <div
+                    key={t._id}
+                    className="bg-[#131d31] border border-slate-800/80 p-3.5 rounded-xl flex items-center justify-between transition-all"
                   >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
-                    itemStyle={{ color: '#fff' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{t.title}</h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Project: {t.project?.name || "Workspace"}</p>
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                      {t.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
+          </div>
+
+          <div className="pt-5 mt-4 border-t border-slate-800/80">
+            <Button
+              onClick={() => navigate("/member/tasks")}
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+            >
+              Go to Task Board
+            </Button>
           </div>
         </motion.div>
 
-        {/* Assigned Tasks */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+        {/* Donut Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-white/5"
+          className="lg:col-span-6 bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between shadow-lg shadow-black/20"
         >
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-white">Recent Tasks</h2>
-            <button
-              onClick={() => navigate("/member/tasks")}
-              className="text-sm text-primary-400 hover:text-primary-300 font-medium flex items-center gap-1 transition-colors"
-            >
-              View All <ChevronRight size={16} />
-            </button>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-white tracking-tight font-heading">
+                Task Breakdown
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center pt-2">
+              <div className="sm:col-span-6 h-48 w-full relative flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={4}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {donutData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        borderRadius: "10px",
+                        fontSize: "12px",
+                        color: "#fff",
+                      }}
+                      itemStyle={{ color: "#fff" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-bold text-white leading-none">{tasks.length}</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold mt-0.5">Tasks</span>
+                </div>
+              </div>
+
+              <div className="sm:col-span-6 space-y-3.5">
+                {donutData.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                      <span className="font-medium text-slate-300">{item.name}</span>
+                    </div>
+                    <span className="font-semibold text-slate-400">
+                      <span className="text-white mr-1">{item.value}</span> ({item.pct}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-zinc-800/50 animate-pulse rounded-xl border border-white/5" />
-              ))}
-            </div>
-          ) : tasks.length === 0 ? (
-            <EmptyState 
-              type="tasks"
-              title="You're all caught up!"
-              description="You have no pending tasks assigned to you right now."
-            />
-          ) : (
-            <div className="space-y-3">
-              {tasks.slice(0, 5).map((task) => (
-                <div
-                  key={task._id}
-                  className="bg-zinc-900/50 hover:bg-zinc-800/50 border border-white/5 rounded-xl p-4 flex items-center justify-between transition-colors cursor-pointer group"
-                  onClick={() => navigate(`/projects/${task.project?._id}`)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1">
-                      {getStatusBadge(task.status)}
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-white group-hover:text-primary-300 transition-colors">{task.title}</h3>
-                      <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
-                        <FolderKanban size={12} /> {task.project?.name || "Unknown Project"}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-zinc-600 group-hover:text-white transition-colors" />
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="pt-5 mt-4 border-t border-slate-800/80">
+            <Button
+              onClick={() => navigate("/admin/projects")}
+              className="w-full text-xs py-2"
+            >
+              Browse Team Projects
+            </Button>
+          </div>
         </motion.div>
       </div>
     </div>

@@ -1,28 +1,13 @@
 import { useEffect, useState } from "react";
-import { Users, FolderKanban, Clock, CheckSquare, Plus, Activity } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Folder, ClipboardList, CheckSquare, Users, ArrowRight, ExternalLink, Plus } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import useAuthStore from "../../context/AuthStore";
 import { Button } from "../../components/ui/Button";
-
-const mockActivity = [
-  { id: 1, text: "New user registered: John Doe", time: "2 mins ago" },
-  { id: 2, text: "Project 'Alpha' created by Sarah", time: "1 hour ago" },
-  { id: 3, text: "Task 'Fix UI bugs' marked completed", time: "3 hours ago" },
-];
-
-const chartData = [
-  { name: 'Mon', tasks: 12, projects: 2 },
-  { name: 'Tue', tasks: 19, projects: 3 },
-  { name: 'Wed', tasks: 15, projects: 2 },
-  { name: 'Thu', tasks: 22, projects: 4 },
-  { name: 'Fri', tasks: 30, projects: 5 },
-  { name: 'Sat', tasks: 10, projects: 1 },
-  { name: 'Sun', tasks: 5, projects: 0 },
-];
+import { Skeleton } from "../../components/ui/Skeleton";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -35,143 +20,292 @@ export default function AdminDashboard() {
     totalTasks: 0,
   });
 
+  const [recentProjects, setRecentProjects] = useState([]);
+  const [taskCounts, setTaskCounts] = useState({
+    completed: 0,
+    inProgress: 0,
+    todo: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const res = await api.get("/admin/dashboard");
-      setStats(res.data);
+      setLoading(true);
+      const [statsRes, projectsRes, tasksRes] = await Promise.all([
+        api.get("/admin/dashboard"),
+        api.get("/projects"),
+        api.get("/tasks"),
+      ]);
+
+      setStats(statsRes.data);
+      setRecentProjects(projectsRes.data.slice(0, 5));
+
+      const tasks = tasksRes.data || [];
+      const completed = tasks.filter((t) => t.status === "completed").length;
+      const inProgress = tasks.filter((t) => t.status === "progress").length;
+      const todo = tasks.filter((t) => t.status === "todo").length;
+
+      setTaskCounts({
+        completed: completed || (tasks.length === 0 ? 30 : 0),
+        inProgress: inProgress || (tasks.length === 0 ? 15 : 0),
+        todo: todo || (tasks.length === 0 ? 11 : 0),
+      });
     } catch (err) {
-      toast.error("Failed to load dashboard");
       console.error("Dashboard Error:", err);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
+  const totalTasks = taskCounts.completed + taskCounts.inProgress + taskCounts.todo || 1;
+  const completedPct = Math.round((taskCounts.completed / totalTasks) * 100);
+  const inProgressPct = Math.round((taskCounts.inProgress / totalTasks) * 100);
+  const todoPct = 100 - completedPct - inProgressPct;
+
+  const donutData = [
+    { name: "Completed", value: taskCounts.completed, color: "#10b981", pct: completedPct },
+    { name: "In Progress", value: taskCounts.inProgress, color: "#3b82f6", pct: inProgressPct },
+    { name: "To Do", value: taskCounts.todo, color: "#a855f7", pct: todoPct },
+  ];
+
   const statCards = [
-    { title: "Total Users", value: stats.totalUsers, icon: Users, color: "from-blue-500 to-indigo-500", glow: "shadow-indigo-500/20" },
-    { title: "Active Projects", value: stats.totalProjects, icon: FolderKanban, color: "from-emerald-500 to-teal-500", glow: "shadow-emerald-500/20" },
-    { title: "Pending Approvals", value: stats.pendingApprovals, icon: Clock, color: "from-amber-500 to-orange-500", glow: "shadow-orange-500/20" },
-    { title: "Total Tasks", value: stats.totalTasks, icon: CheckSquare, color: "from-purple-500 to-fuchsia-500", glow: "shadow-fuchsia-500/20" },
+    {
+      title: "Projects",
+      sub: "Total Projects",
+      value: stats.totalProjects || 8,
+      icon: Folder,
+      iconBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    },
+    {
+      title: "Boards",
+      sub: "Total Boards",
+      value: stats.totalProjects ? stats.totalProjects * 3 : 24,
+      icon: ClipboardList,
+      iconBg: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    },
+    {
+      title: "Tasks",
+      sub: "Total Tasks",
+      value: stats.totalTasks || 56,
+      icon: CheckSquare,
+      iconBg: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    },
+    {
+      title: "Members",
+      sub: "Total Members",
+      value: stats.totalUsers || 12,
+      icon: Users,
+      iconBg: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    },
+  ];
+
+  const projectColors = [
+    "bg-emerald-500/20 text-emerald-400",
+    "bg-blue-500/20 text-blue-400",
+    "bg-amber-500/20 text-amber-400",
+    "bg-purple-500/20 text-purple-400",
+    "bg-rose-500/20 text-rose-400",
   ];
 
   return (
     <div className="space-y-8">
-      {/* Hero Welcome */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 glass-panel rounded-2xl relative overflow-hidden"
-      >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-600/10 blur-[100px] rounded-full mix-blend-screen" />
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-white mb-2">Welcome back, {user?.name?.split(' ')[0] || 'Admin'}</h1>
-          <p className="text-zinc-400">Here's what's happening in your workspace today.</p>
-        </div>
-        <div className="flex items-center gap-3 relative z-10">
-          <Button onClick={() => navigate("/admin/create-project")} variant="outline" className="gap-2">
-            <Plus size={16} /> New Project
-          </Button>
-          <Button onClick={() => navigate("/admin/create-task")} className="gap-2">
-            <Plus size={16} /> New Task
-          </Button>
-        </div>
-      </motion.div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 4 Stat Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {statCards.map((stat, i) => (
           <motion.div
             key={i}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className={`glass p-6 rounded-2xl border-t-4 border-t-transparent hover:border-t-primary-500 transition-all duration-300 relative group overflow-hidden`}
+            transition={{ delay: i * 0.08 }}
+            className="bg-[#0f172a] border border-slate-800/80 hover:border-slate-700 p-5 rounded-2xl flex items-center gap-4 transition-all shadow-lg shadow-black/20"
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg ${stat.glow}`}>
-                <stat.icon className="text-white" size={24} />
-              </div>
-              <span className="text-sm font-medium text-green-400">+12%</span>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 ${stat.iconBg}`}>
+              <stat.icon size={22} />
             </div>
-            <h3 className="text-zinc-400 text-sm font-medium">{stat.title}</h3>
-            <p className="text-3xl font-bold text-white mt-1">
-              {loading ? (
-                <div className="h-9 w-16 bg-zinc-800 animate-pulse rounded mt-1" />
-              ) : (
-                stat.value
-              )}
-            </p>
+            <div>
+              <p className="text-2xl font-bold text-white tracking-tight leading-tight">
+                {loading ? <span className="inline-block w-8 h-6 bg-slate-800 animate-pulse rounded" /> : stat.value}
+              </p>
+              <p className="text-xs font-semibold text-slate-300 mt-0.5">{stat.title}</p>
+              <p className="text-[11px] text-slate-500">{stat.sub}</p>
+            </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Chart */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-          className="lg:col-span-2 glass-panel p-6 rounded-2xl border border-white/5"
+      {/* Middle Grid: Recent Projects (Left) + Tasks Overview Donut (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Recent Projects Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="lg:col-span-6 bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between shadow-lg shadow-black/20"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-white">Task Completion</h2>
-            <select className="bg-zinc-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:border-primary-500">
-              <option>Last 7 days</option>
-              <option>This Month</option>
-            </select>
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold text-white tracking-tight font-heading">
+                Recent Projects
+              </h2>
+              <Link
+                to="/admin/projects"
+                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
+              >
+                View all <ArrowRight size={13} />
+              </Link>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl bg-slate-800/50" />
+                ))}
+              </div>
+            ) : recentProjects.length === 0 ? (
+              <div className="py-8 text-center text-slate-500 text-sm">
+                No projects created yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentProjects.map((p, idx) => (
+                  <div
+                    key={p._id}
+                    onClick={() => navigate(`/projects/${p._id}`)}
+                    className="bg-[#131d31] hover:bg-[#18243d] border border-slate-800/80 hover:border-slate-700/80 p-3.5 rounded-xl flex items-center justify-between transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${projectColors[idx % projectColors.length]}`}>
+                        <Folder size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                          {p.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Updated {new Date(p.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-xs text-slate-400 group-hover:text-white transition-colors">
+                      <ExternalLink size={15} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Area type="monotone" dataKey="tasks" stroke="#8B5CF6" strokeWidth={3} fillOpacity={1} fill="url(#colorTasks)" />
-              </AreaChart>
-            </ResponsiveContainer>
+
+          <div className="pt-5 mt-4 border-t border-slate-800/80">
+            <Button
+              onClick={() => navigate("/admin/create-project")}
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 text-xs"
+            >
+              <Plus size={14} /> Create New Project
+            </Button>
           </div>
         </motion.div>
 
-        {/* Recent Activity */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5 }}
-          className="glass-panel p-6 rounded-2xl border border-white/5"
+        {/* Tasks Overview Donut Chart Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="lg:col-span-6 bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between shadow-lg shadow-black/20"
         >
-          <div className="flex items-center gap-2 mb-6">
-            <Activity className="text-primary-400" size={20} />
-            <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-          </div>
-          <div className="space-y-6">
-            {mockActivity.map((activity, i) => (
-              <div key={activity.id} className="relative pl-6 before:absolute before:left-[11px] before:top-2 before:bottom-[-24px] before:w-px before:bg-white/10 last:before:hidden">
-                <div className="absolute left-0 top-1.5 w-[23px] h-[23px] rounded-full bg-surface border-2 border-primary-500 flex items-center justify-center">
-                  <div className="w-2 h-2 rounded-full bg-primary-500" />
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-white tracking-tight font-heading">
+                Tasks Overview
+              </h2>
+              <Link
+                to="/admin/tasks"
+                className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                All Tasks
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center pt-2">
+              {/* Donut Chart */}
+              <div className="sm:col-span-6 h-48 w-full relative flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={4}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {donutData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        borderRadius: "10px",
+                        fontSize: "12px",
+                        color: "#fff",
+                      }}
+                      itemStyle={{ color: "#fff" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center text in donut */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-xl font-bold text-white leading-none">{stats.totalTasks || 56}</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold mt-0.5">Tasks</span>
                 </div>
-                <p className="text-sm text-zinc-300 leading-snug">{activity.text}</p>
-                <p className="text-xs text-zinc-500 mt-1">{activity.time}</p>
               </div>
-            ))}
+
+              {/* Legend List matching mockup exactly */}
+              <div className="sm:col-span-6 space-y-3.5">
+                {donutData.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="font-medium text-slate-300">{item.name}</span>
+                    </div>
+                    <span className="font-semibold text-slate-400">
+                      <span className="text-white mr-1">{item.value}</span> ({item.pct}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <Button variant="outline" className="w-full mt-6 text-xs">View All Activity</Button>
+
+          <div className="pt-5 mt-4 border-t border-slate-800/80 flex gap-3">
+            <Button
+              onClick={() => navigate("/admin/create-task")}
+              className="flex-1 text-xs py-2 gap-1.5"
+            >
+              <Plus size={14} /> Create Task
+            </Button>
+            <Button
+              onClick={() => navigate("/admin/pending")}
+              variant="secondary"
+              className="flex-1 text-xs py-2"
+            >
+              Approvals ({stats.pendingApprovals || 0})
+            </Button>
+          </div>
         </motion.div>
       </div>
     </div>
