@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/Button';
 
@@ -40,18 +40,7 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0E14] flex flex-col justify-between p-6 relative overflow-hidden">
-      {/* Top Back Link */}
-      <div className="w-full max-w-6xl mx-auto">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Home</span>
-        </Link>
-      </div>
-
+    <div className="min-h-screen bg-[#0B0E14] flex flex-col justify-center items-center p-6 relative overflow-hidden">
       {/* Main Login Card */}
       <div className="w-full max-w-md mx-auto my-8">
         <div className="bg-[#121622] border border-[#1E2436] rounded-2xl p-8 shadow-2xl relative">
@@ -182,35 +171,6 @@ export const Login = () => {
             <Link to="/register" className="text-primary hover:text-primary-light font-medium">
               Create an account
             </Link>
-          </div>
-
-          {/* Quick Demo Logins Helper */}
-          <div className="mt-6 pt-4 border-t border-[#1E2436]/60 text-center">
-            <span className="text-[11px] text-slate-500 block mb-2">Demo Credentials:</span>
-            <div className="flex justify-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('admin@test.com');
-                  setPassword('password123');
-                  setRole('ADMIN');
-                }}
-                className="text-[11px] px-2.5 py-1 bg-[#1E2436] hover:bg-slate-700 text-slate-300 rounded"
-              >
-                Admin (Demof)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('mem1@test.com');
-                  setPassword('password123');
-                  setRole('MEMBER');
-                }}
-                className="text-[11px] px-2.5 py-1 bg-[#1E2436] hover:bg-slate-700 text-slate-300 rounded"
-              >
-                Member (Mem1)
-              </button>
-            </div>
           </div>
         </div>
       </div>
