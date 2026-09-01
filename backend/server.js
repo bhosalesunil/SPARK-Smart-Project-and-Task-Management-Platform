@@ -1,0 +1,92 @@
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import connectDB from "./config/db.js";
+
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
+import boardRoutes from "./routes/boardRoutes.js";
+import memberRoutes from "./routes/memberRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
+
+import User from "./models/User.js";
+import Project from "./models/Project.js";
+import Task from "./models/Task.js";
+
+import protect from "./middleware/authMiddleware.js";
+import authorize from "./middleware/roleMiddleware.js";
+
+dotenv.config();
+connectDB();
+
+const app = express();
+
+// CORS configuration supporting specified origins and dynamic local development ports
+const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5174")
+  .split(",")
+  .map((o) => o.trim());
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (
+        configuredOrigins.includes(origin) ||
+        origin.startsWith("http://localhost:") ||
+        origin.startsWith("http://127.0.0.1:")
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS origin not allowed: " + origin));
+    },
+    credentials: true,
+  })
+);
+app.use(express.json());
+
+console.log("Backend server running");
+
+//  ROUTES
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/board", boardRoutes);
+app.use("/api/member", memberRoutes);
+app.use("/api/tasks", taskRoutes);
+
+// ADMIN DASHBOARD
+app.get(
+  "/api/admin/dashboard",
+  protect,
+  authorize("admin"),
+  async (req, res) => {
+    try {
+      const totalUsers = await User.countDocuments();
+      const totalProjects = await Project.countDocuments({ status: "active" });
+      const pendingApprovals = await User.countDocuments({
+        status: "pending",
+      });
+      const totalTasks = await Task.countDocuments();
+
+      res.json({
+        totalUsers,
+        totalProjects,
+        pendingApprovals,
+        totalTasks,
+      });
+    } catch (error) {
+      console.error("Dashboard Stats Error:", error);
+      res.status(500).json({ message: "Failed to load dashboard stats" });
+    }
+  }
+);
+
+// ROOT
+app.get("/", (req, res) => {
+  res.send("SPARK Backend Running");
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(` Server running on ${PORT}`));

@@ -1,96 +1,147 @@
-import React, { useState } from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ProtectedRoute } from './routes/ProtectedRoute';
-import { Navbar } from './components/Navbar';
-import { Sidebar } from './components/Sidebar';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-// Pages
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
+import Home from "./pages/Home";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 
-// Admin Pages
-import { AdminDashboard } from './pages/admin/Dashboard';
-import { AdminProjects } from './pages/admin/Projects';
-import { AdminTasks } from './pages/admin/Tasks';
-import { AdminUsers } from './pages/admin/Users';
-import { AdminApprovals } from './pages/admin/Approvals';
+import AppLayout from "./components/layout/AppLayout";
 
-// Member Pages
-import { MemberDashboard } from './pages/member/Dashboard';
-import { MyTasks } from './pages/member/MyTasks';
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminProjects from "./pages/admin/AdminProjects";
+import AdminPending from "./pages/admin/AdminPending";
+import AdminCreateProject from "./pages/admin/AdminCreateProject";
+import AdminCreateTask from "./pages/admin/AdminCreateTask";
+import AdminTasks from "./pages/admin/AdminTasks";
 
-// Layout wrapper for authenticated dashboard views
-const DashboardLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+import MemberDashboard from "./pages/member/MemberDashboard";
+import MemberTasks from "./pages/member/MemberTasks";
 
-  return (
-    <div className="min-h-screen bg-[#0B0E14] text-slate-100 flex">
-      {/* Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+import ProjectBoard from "./pages/projects/ProjectBoard";
+import ProjectMembers from "./pages/admin/ProjectMembers";
 
-      {/* Main Content Area */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen transition-all duration-200">
-        <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  );
-};
+import Unauthorized from "./pages/Unauthorized";
 
-// Root Redirect Component
-const RootRedirect = () => {
-  const { user, isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0B0E14] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Navigate to={user.role === 'ADMIN' ? '/admin' : '/member'} replace />;
-};
+import ProtectedRoute from "./components/common/ProtectedRoute";
+import { Toaster } from "react-hot-toast";
 
 export default function App() {
   return (
-    <AuthProvider>
+    <BrowserRouter>
+      <Toaster position="top-right" />
+
       <Routes>
-        {/* Public Routes */}
+        {/* ---------- Public ---------- */}
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
-        {/* Protected Admin Routes */}
-        <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/projects" element={<AdminProjects />} />
-            <Route path="/admin/tasks" element={<AdminTasks />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/pending" element={<AdminApprovals />} />
-            <Route path="/admin/approvals" element={<AdminApprovals />} />
-          </Route>
+        {/* ---------- Protected Layout Wrapper ---------- */}
+        <Route element={<AppLayout />}>
+          
+          {/* ---------- Admin ---------- */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/projects"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminProjects />
+              </ProtectedRoute>
+            }
+          />
+        
+          <Route
+            path="/admin/tasks"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTasks />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/create-project"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminCreateProject />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/pending"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminPending />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/create-task"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminCreateTask />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ---------- Projects ---------- */}
+          <Route
+            path="/projects/:projectId"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "member"]}>
+                <ProjectBoard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/projects/:projectId/members"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ProjectMembers />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ---------- Member ---------- */}
+          <Route
+            path="/member"
+            element={
+              <ProtectedRoute allowedRoles={["member"]}>
+                <MemberDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/member/tasks"
+            element={
+              <ProtectedRoute allowedRoles={["member"]}>
+                <MemberTasks />
+              </ProtectedRoute>
+            }
+          />
         </Route>
-
-        {/* Protected Member Routes */}
-        <Route element={<ProtectedRoute requiredRole="MEMBER" />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/member" element={<MemberDashboard />} />
-            <Route path="/member/tasks" element={<MyTasks />} />
-          </Route>
-        </Route>
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </AuthProvider>
+    </BrowserRouter>
   );
 }
